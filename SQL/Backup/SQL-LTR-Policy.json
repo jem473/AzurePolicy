@@ -1,0 +1,164 @@
+{
+    "mode": "Indexed",
+    "parameters": {
+        "effect": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Effect",
+                "description": "Enable or disable the execution of the policy."
+            },
+            "allowedValues": [
+                "DeployIfNotExists",
+                "Disabled"
+            ],
+            "defaultValue": "DeployIfNotExists"
+        },
+        "inclusionTagName": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Inclusion Tag Name",
+                "description": "Name of the tag to use for including Azure SQL databases in the scope of this policy. This should be used along with the Inclusion Tag Value parameter."
+            },
+            "defaultValue": ""
+        },
+        "inclusionTagValue": {
+            "type": "Array",
+            "metadata": {
+                "displayName": "Inclusion Tag Values",
+                "description": "Value of the tag to use for including Azure SQL databases in the scope of this policy (in case of multiple values, use a comma-separated list). This should be used along with the Inclusion Tag Name parameter."
+            }
+        },
+        "weeklyRetention": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Weekly LTR Retention",
+                "description": "The weekly retention policy for an LTR backup in an ISO 8601 format."
+            },
+            "defaultValue": "P30D"
+        },
+        "monthlyRetention": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Monthly LTR Retention",
+                "description": "The monthly retention policy for an LTR backup in an ISO 8601 format."
+            },
+            "defaultValue": "PT0S"
+        },
+        "yearlyRetention": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Yearly LTR Retention",
+                "description": "The yearly retention policy for an LTR backup in an ISO 8601 format."
+            },
+            "defaultValue": "PT0S"
+        },
+        "weekOfYear": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Yearly LTR Week",
+                "description": "The week of the year to take the Yearly LTR Backup. Must not be 0."
+            },
+            "defaultValue": "1"
+        }
+    },
+    "policyRule": {
+        "if": {
+            "allOf": [
+                {
+                    "field": "type",
+                    "equals": "Microsoft.Sql/servers/databases"
+                },
+                {
+                    "field": "[concat('tags[', parameters('inclusionTagName'), ']')]",
+                    "in": "[parameters('inclusionTagValue')]"
+                }
+            ]
+        },
+        "then": {
+            "effect": "[parameters('effect')]",
+            "details": {
+                "type": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies",
+                "name": "default",
+                "existenceCondition": {
+                    "allOf": [
+                        {
+                            "field": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies/weeklyRetention",
+                            "equals": "[parameters('weeklyRetention')]"
+                        },
+                        {
+                            "field": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies/monthlyRetention",
+                            "equals": "[parameters('monthlyRetention')]"
+                        },
+                        {
+                            "field": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies/yearlyRetention",
+                            "equals": "[parameters('yearlyRetention')]"
+                        },
+                        {
+                            "field": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies/weekOfYear",
+                            "equals": "[parameters('weekOfYear')]"
+                        }
+                    ]
+                },
+                "roleDefinitionIds": [
+                    "/providers/Microsoft.Authorization/roleDefinitions/9b7fa17d-e63e-47b0-bb0a-15c516ac86ec"
+                ],
+                "deployment": {
+                    "properties": {
+                        "mode": "incremental",
+                        "template": {
+                            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                            "contentVersion": "1.0.0.0",
+                            "parameters": {
+                                "databaseName": {
+                                    "type": "String"
+                                },
+                                "weeklyISO": {
+                                    "type": "String"
+                                },
+                                "monthlyISO": {
+                                    "type": "String"
+                                },
+                                "yearlyISO": {
+                                    "type": "String"
+                                },
+                                "weekNumber": {
+                                    "type": "String"
+                                }
+                            },
+                            "resources": [
+                                {
+                                    "name": "[concat(parameters('databaseName'),'/default')]",
+                                    "type": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies",
+                                    "apiVersion": "2024-05-01-preview",
+                                    "properties": {
+                                        "weeklyRetention": "[parameters('weeklyISO')]",
+                                        "monthlyRetention": "[parameters('monthlyISO')]",
+                                        "yearlyRetention": "[parameters('yearlyISO')]",
+                                        "weekOfYear": "[parameters('weekNumber')]"
+                                    }
+                                }
+                            ]
+                        },
+                        "parameters": {
+                            "databaseName": {
+                                "value": "[field('fullname')]"
+                            },
+                            "weeklyISO": {
+                                "value": "[parameters('weeklyRetention')]"
+                            },
+                            "monthlyISO": {
+                                "value": "[parameters('monthlyRetention')]"
+                            },
+                            "yearlyISO": {
+                                "value": "[parameters('yearlyRetention')]"
+                            },
+                            "weekNumber": {
+                                "value": "[parameters('weekOfYear')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,103 @@
+{
+    "mode": "Indexed",
+    "parameters": {
+        "effect": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Effect",
+                "description": "Enable or disable the execution of the policy."
+            },
+            "allowedValues": [
+                "DeployIfNotExists",
+                "Disabled"
+            ],
+            "defaultValue": "DeployIfNotExists"
+        },
+        "inclusionTagName": {
+            "type": "String",
+            "metadata": {
+                "displayName": "Inclusion Tag Name",
+                "description": "Name of the tag to use for including Azure SQL databases in the scope of this policy. This should be used along with the Inclusion Tag Value parameter."
+            },
+            "defaultValue": ""
+        },
+        "inclusionTagValue": {
+            "type": "Array",
+            "metadata": {
+                "displayName": "Inclusion Tag Values",
+                "description": "Value of the tag to use for including Azure SQL databases in the scope of this policy (in case of multiple values, use a comma-separated list). This should be used along with the Inclusion Tag Name parameter."
+            }
+        },
+        "pitrDays": {
+            "type": "String",
+            "metadata": {
+                "displayName": "PITR Retention Days",
+                "description": "The number of days to retain PITR backups."
+            },
+            "defaultValue": "14"
+        }
+    },
+    "policyRule": {
+        "if": {
+            "allOf": [
+                {
+                    "field": "type",
+                    "equals": "Microsoft.Sql/servers/databases"
+                },
+                {
+                    "field": "[concat('tags[', parameters('inclusionTagName'), ']')]",
+                    "in": "[parameters('inclusionTagValue')]"
+                }
+            ]
+        },
+        "then": {
+            "effect": "[parameters('effect')]",
+            "details": {
+                "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies",
+                "name": "default",
+                "existenceCondition": {
+                    "field": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies/retentionDays",
+                    "equals": "[parameters('pitrDays')]"
+                },
+                "roleDefinitionIds": [
+                    "/providers/Microsoft.Authorization/roleDefinitions/9b7fa17d-e63e-47b0-bb0a-15c516ac86ec"
+                ],
+                "deployment": {
+                    "properties": {
+                        "mode": "incremental",
+                        "template": {
+                            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                            "contentVersion": "1.0.0.0",
+                            "parameters": {
+                                "databaseName": {
+                                    "type": "String"
+                                },
+                                "shortTermRetention": {
+                                    "type": "String"
+                                }
+                            },
+                            "resources": [
+                                {
+                                    "name": "[concat(parameters('databaseName'),'/default')]",
+                                    "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies",
+                                    "apiVersion": "2024-05-01-preview",
+                                    "properties": {
+                                        "retentionDays": "[parameters('shortTermRetention')]"
+                                    }
+                                }
+                            ]
+                        },
+                        "parameters": {
+                            "databaseName": {
+                                "value": "[field('fullname')]"
+                            },
+                            "shortTermRetention": {
+                                "value": "[parameters('pitrDays')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
